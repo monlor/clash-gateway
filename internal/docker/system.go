@@ -15,7 +15,8 @@ type Event struct {
 	Type   string `json:"Type"`
 	Action string `json:"Action"`
 	Actor  struct {
-		ID string `json:"ID"`
+		ID         string            `json:"ID"`
+		Attributes map[string]string `json:"Attributes"`
 	} `json:"Actor"`
 }
 
@@ -141,6 +142,44 @@ func parseEventLine(raw []byte) (Event, bool) {
 		return Event{}, false
 	}
 	return event, true
+}
+
+func ShouldRefreshForEvent(event Event, managedNetwork string) bool {
+	switch event.Type {
+	case "container":
+		switch event.Action {
+		case "start", "stop", "die", "destroy":
+			return hasGatewayEventLabels(event.Actor.Attributes)
+		default:
+			return false
+		}
+	case "network":
+		if event.Action != "connect" && event.Action != "disconnect" {
+			return false
+		}
+		return strings.TrimSpace(event.Actor.Attributes["name"]) == strings.TrimSpace(managedNetwork)
+	default:
+		return false
+	}
+}
+
+func hasGatewayEventLabels(attributes map[string]string) bool {
+	if len(attributes) == 0 {
+		return false
+	}
+	if strings.TrimSpace(attributes[LabelManagedGatewayName]) != "" {
+		return true
+	}
+	if strings.TrimSpace(attributes[LabelGateway]) != "" {
+		return true
+	}
+	if strings.TrimSpace(attributes[LabelAllowAttach]) != "" {
+		return true
+	}
+	if strings.TrimSpace(attributes[LabelDisable]) != "" {
+		return true
+	}
+	return false
 }
 
 func FindSelfGatewayName(containers []Container, selfIdentifier string) (string, error) {

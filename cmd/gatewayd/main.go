@@ -27,6 +27,8 @@ import (
 	"github.com/monlor/clash-gateway/internal/subscription"
 )
 
+const bundledUIDir = "/opt/metacubexd"
+
 func main() {
 	cfg, err := config.ParseEnv(os.Getenv)
 	if err != nil {
@@ -135,6 +137,9 @@ func main() {
 	go func() {
 		defer wg.Done()
 		err := dockerCLI.Watch(ctx, func(event docker.Event) {
+			if !docker.ShouldRefreshForEvent(event, cfg.ManagedNetworkName) {
+				return
+			}
 			log.Printf("docker event %s/%s %s", event.Type, event.Action, event.Actor.ID)
 			refresh("event")
 		})
@@ -198,35 +203,17 @@ func startUIServer(ctx context.Context, wg *sync.WaitGroup, cfg config.Config, b
 		return
 	}
 
-	uiDir := filepath.Join(cfg.DataDir, "ui")
-	if _, err := os.Stat(uiDir); err != nil {
-		uiDir = "/opt/metacubexd"
-	}
-	_ = os.MkdirAll(uiDir, 0o755)
-	configJS := "window.__METACUBEXD_CONFIG__ = { defaultBackendURL: window.location.origin + '/-/controller' }\n"
-	_ = os.WriteFile(filepath.Join(uiDir, "config.js"), []byte(configJS), 0o644)
-
-	target, err := url.Parse(backendURL)
+	uiDir, err := prepareUIAssets(bundledUIDir)
 	if err != nil {
-		log.Printf("invalid controller url %q: %v", backendURL, err)
+		log.Printf("prepare ui assets failed: %v", err)
 		return
 	}
-	proxy := httputil.NewSingleHostReverseProxy(target)
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/-/controller")
-		if req.URL.Path == "" {
-			req.URL.Path = "/"
-		}
-		if cfg.ControllerSecret != "" {
-			req.Header.Set("Authorization", "Bearer "+cfg.ControllerSecret)
-		}
-	}
 
-	mux := http.NewServeMux()
-	mux.Handle("/-/controller/", proxy)
-	mux.Handle("/", http.FileServer(http.Dir(uiDir)))
+	mux, err := newUIHandler(uiDir, backendURL, cfg.ControllerSecret)
+	if err != nil {
+		log.Printf("create ui handler failed: %v", err)
+		return
+	}
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", cfg.UIPort),
@@ -249,6 +236,51 @@ func startUIServer(ctx context.Context, wg *sync.WaitGroup, cfg config.Config, b
 		defer cancel()
 		_ = server.Shutdown(shutdownCtx)
 	}()
+}
+
+func prepareUIAssets(uiDir string) (string, error) {
+	indexPath := filepath.Join(uiDir, "index.html")
+	if _, err := os.Stat(indexPath); err != nil {
+		return "", fmt.Errorf("bundled ui index not found at %s: %w", indexPath, err)
+	}
+
+	configJS := "window.__METACUBEXD_CONFIG__ = { defaultBackendURL: window.location.origin + '/-/controller' }\n"
+	if err := os.WriteFile(filepath.Join(uiDir, "config.js"), []byte(configJS), 0o644); err != nil {
+		return "", err
+	}
+	return uiDir, nil
+}
+
+func newUIHandler(uiDir, backendURL, controllerSecret string) (http.Handler, error) {
+	target, err := url.Parse(backendURL)
+	if err != nil {
+		return nil, err
+	}
+
+	proxy := httputil.NewSingleHostReverseProxy(target)
+	originalDirector := proxy.Director
+	proxy.Director = func(req *http.Request) {
+		originalDirector(req)
+		req.URL.Path = strings.TrimPrefix(req.URL.Path, "/-/controller")
+		if req.URL.Path == "" {
+			req.URL.Path = "/"
+		}
+		if controllerSecret != "" {
+			req.Header.Set("Authorization", "Bearer "+controllerSecret)
+		}
+	}
+
+	fileServer := http.FileServer(http.Dir(uiDir))
+	mux := http.NewServeMux()
+	mux.Handle("/-/controller/", proxy)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.ServeFile(w, r, filepath.Join(uiDir, "index.html"))
+			return
+		}
+		fileServer.ServeHTTP(w, r)
+	})
+	return mux, nil
 }
 
 func controllerURL(cfg config.Config) string {

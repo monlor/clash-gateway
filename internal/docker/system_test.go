@@ -57,12 +57,76 @@ func TestParseInspectOutput(t *testing.T) {
 func TestParseEventLine(t *testing.T) {
 	t.Parallel()
 
-	event, ok := parseEventLine([]byte(`{"Type":"container","Action":"start","Actor":{"ID":"abc123"}}`))
+	event, ok := parseEventLine([]byte(`{"Type":"container","Action":"start","Actor":{"ID":"abc123","Attributes":{"name":"app-a"}}}`))
 	if !ok {
 		t.Fatal("parseEventLine returned ok=false, want true")
 	}
-	if event.Type != "container" || event.Action != "start" || event.Actor.ID != "abc123" {
+	if event.Type != "container" || event.Action != "start" || event.Actor.ID != "abc123" || event.Actor.Attributes["name"] != "app-a" {
 		t.Fatalf("event = %#v, want parsed event", event)
+	}
+}
+
+func TestShouldRefreshForEventRejectsExecEvents(t *testing.T) {
+	t.Parallel()
+
+	if ShouldRefreshForEvent(Event{
+		Type:   "container",
+		Action: "exec_die",
+		Actor: struct {
+			ID         string            `json:"ID"`
+			Attributes map[string]string `json:"Attributes"`
+		}{ID: "abc123"},
+	}, "clash-gateway") {
+		t.Fatal("shouldRefreshForEvent = true, want false for exec events")
+	}
+}
+
+func TestShouldRefreshForEventAcceptsGatewayContainerStart(t *testing.T) {
+	t.Parallel()
+
+	if !ShouldRefreshForEvent(Event{
+		Type:   "container",
+		Action: "start",
+		Actor: struct {
+			ID         string            `json:"ID"`
+			Attributes map[string]string `json:"Attributes"`
+		}{ID: "abc123", Attributes: map[string]string{
+			"name":                  "clash-gateway",
+			LabelManagedGatewayName: "main",
+			LabelAttachNetworkName:  "clash-gateway",
+		}},
+	}, "clash-gateway") {
+		t.Fatal("shouldRefreshForEvent = false, want true for gateway container start")
+	}
+}
+
+func TestShouldRefreshForEventAcceptsManagedNetworkConnect(t *testing.T) {
+	t.Parallel()
+
+	if !ShouldRefreshForEvent(Event{
+		Type:   "network",
+		Action: "connect",
+		Actor: struct {
+			ID         string            `json:"ID"`
+			Attributes map[string]string `json:"Attributes"`
+		}{ID: "net123", Attributes: map[string]string{"name": "clash-gateway"}},
+	}, "clash-gateway") {
+		t.Fatal("shouldRefreshForEvent = false, want true for managed network connect")
+	}
+}
+
+func TestShouldRefreshForEventRejectsUnmanagedNetworkConnect(t *testing.T) {
+	t.Parallel()
+
+	if ShouldRefreshForEvent(Event{
+		Type:   "network",
+		Action: "connect",
+		Actor: struct {
+			ID         string            `json:"ID"`
+			Attributes map[string]string `json:"Attributes"`
+		}{ID: "net123", Attributes: map[string]string{"name": "bridge"}},
+	}, "clash-gateway") {
+		t.Fatal("shouldRefreshForEvent = true, want false for unmanaged network connect")
 	}
 }
 
