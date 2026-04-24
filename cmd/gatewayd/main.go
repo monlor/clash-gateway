@@ -23,6 +23,7 @@ import (
 	"github.com/monlor/clash-gateway/internal/config"
 	"github.com/monlor/clash-gateway/internal/docker"
 	"github.com/monlor/clash-gateway/internal/gateway"
+	"github.com/monlor/clash-gateway/internal/netns"
 	"github.com/monlor/clash-gateway/internal/subscription"
 )
 
@@ -37,9 +38,10 @@ func main() {
 
 	dockerCLI := docker.CLI{}
 	service := gateway.Service{
-		Config:    cfg,
-		Fetch:     subscription.HTTPFetcher{}.Fetch,
-		Connector: dockerCLI,
+		Config:     cfg,
+		Fetch:      subscription.HTTPFetcher{}.Fetch,
+		Connector:  dockerCLI,
+		Redirector: netns.Redirector{},
 		Containers: func() []gateway.ContainerSnapshot {
 			containers, err := dockerCLI.Snapshot(context.Background())
 			if err != nil {
@@ -49,10 +51,12 @@ func main() {
 			snapshots := make([]gateway.ContainerSnapshot, 0, len(containers))
 			for _, container := range containers {
 				snapshots = append(snapshots, gateway.ContainerSnapshot{
-					ID:       container.ID,
-					Name:     container.Name,
-					Labels:   container.Labels,
-					Networks: container.Networks,
+					ID:         container.ID,
+					Name:       container.Name,
+					PID:        container.PID,
+					Labels:     container.Labels,
+					Networks:   container.Networks,
+					NetworkIPs: container.NetworkIPs,
 				})
 			}
 			return snapshots
@@ -247,10 +251,11 @@ func newMihomoSupervisor(runtimeConfig, dataDir string) *mihomoSupervisor {
 }
 
 func (s *mihomoSupervisor) Start() error {
-	if _, err := exec.LookPath("mihomo"); err != nil {
+	binary, err := resolveMihomoBinary()
+	if err != nil {
 		return err
 	}
-	cmd := exec.Command("mihomo", "-d", s.dataDir, "-f", s.runtimeConfig)
+	cmd := exec.Command(binary, "-d", s.dataDir, "-f", s.runtimeConfig)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
@@ -275,4 +280,20 @@ func (s *mihomoSupervisor) Stop() error {
 		return nil
 	}
 	return s.cmd.Process.Signal(syscall.SIGTERM)
+}
+
+func resolveMihomoBinary() (string, error) {
+	candidates := []string{"/mihomo", "mihomo", "clash"}
+	for _, candidate := range candidates {
+		if strings.HasPrefix(candidate, "/") {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate, nil
+			}
+			continue
+		}
+		if resolved, err := exec.LookPath(candidate); err == nil {
+			return resolved, nil
+		}
+	}
+	return "", errors.New("mihomo executable not found")
 }

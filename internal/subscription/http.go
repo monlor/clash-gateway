@@ -17,7 +17,14 @@ func (f HTTPFetcher) Fetch(url string) ([]byte, error) {
 		client = &http.Client{Timeout: 30 * time.Second}
 	}
 
-	resp, err := client.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "clash.meta")
+	req.Header.Set("Accept", "*/*")
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}

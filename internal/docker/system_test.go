@@ -11,6 +11,9 @@ func TestParseInspectOutput(t *testing.T) {
 	  {
 	    "Id": "abc123",
 	    "Name": "/app-a",
+	    "State": {
+	      "Pid": 4321
+	    },
 	    "Config": {
 	      "Labels": {
 	        "clash-gateway.gateway": "hk",
@@ -19,8 +22,12 @@ func TestParseInspectOutput(t *testing.T) {
 	    },
 	    "NetworkSettings": {
 	      "Networks": {
-	        "bridge": {},
-	        "clash-gateway-hk": {}
+	        "bridge": {
+	          "IPAddress": "172.17.0.3"
+	        },
+	        "clash-gateway-hk": {
+	          "IPAddress": "172.20.0.10"
+	        }
 	      }
 	    }
 	  }
@@ -36,8 +43,14 @@ func TestParseInspectOutput(t *testing.T) {
 	if containers[0].Name != "app-a" {
 		t.Fatalf("Name = %q, want app-a", containers[0].Name)
 	}
+	if containers[0].PID != 4321 {
+		t.Fatalf("PID = %d, want 4321", containers[0].PID)
+	}
 	if len(containers[0].Networks) != 2 {
 		t.Fatalf("Networks = %#v, want two networks", containers[0].Networks)
+	}
+	if containers[0].NetworkIPs["clash-gateway-hk"] != "172.20.0.10" {
+		t.Fatalf("NetworkIPs = %#v, want managed IP", containers[0].NetworkIPs)
 	}
 }
 

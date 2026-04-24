@@ -16,10 +16,12 @@ type Target struct {
 }
 
 type Container struct {
-	ID       string
-	Name     string
-	Labels   map[string]string
-	Networks []string
+	ID         string
+	Name       string
+	PID        int
+	Labels     map[string]string
+	Networks   []string
+	NetworkIPs map[string]string
 }
 
 type DesiredState struct {

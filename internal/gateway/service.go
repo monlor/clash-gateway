@@ -11,10 +11,12 @@ import (
 )
 
 type ContainerSnapshot struct {
-	ID       string
-	Name     string
-	Labels   map[string]string
-	Networks []string
+	ID         string
+	Name       string
+	PID        int
+	Labels     map[string]string
+	Networks   []string
+	NetworkIPs map[string]string
 }
 
 type Result struct {
@@ -27,6 +29,7 @@ type Service struct {
 	Fetch      func(url string) ([]byte, error)
 	Containers func() []ContainerSnapshot
 	Connector  docker.NetworkConnector
+	Redirector docker.TrafficRedirector
 }
 
 func (s Service) Bootstrap() (Result, error) {
@@ -64,16 +67,19 @@ func (s Service) syncState() (state.Status, error) {
 		GatewayName:    s.Config.GatewayName,
 		ManagedNetwork: s.Config.ManagedNetworkName,
 		Connector:      s.Connector,
+		Redirector:     s.Redirector,
 	}
 
 	var containers []docker.Container
 	if s.Containers != nil {
 		for _, container := range s.Containers() {
 			containers = append(containers, docker.Container{
-				ID:       container.ID,
-				Name:     container.Name,
-				Labels:   container.Labels,
-				Networks: container.Networks,
+				ID:         container.ID,
+				Name:       container.Name,
+				PID:        container.PID,
+				Labels:     container.Labels,
+				Networks:   container.Networks,
+				NetworkIPs: container.NetworkIPs,
 			})
 		}
 	}

@@ -93,13 +93,18 @@ func (c CLI) Watch(ctx context.Context, onEvent func(Event)) error {
 
 func parseInspectOutput(raw []byte) ([]Container, error) {
 	var payload []struct {
-		ID     string `json:"Id"`
-		Name   string `json:"Name"`
+		ID    string `json:"Id"`
+		Name  string `json:"Name"`
+		State struct {
+			Pid int `json:"Pid"`
+		} `json:"State"`
 		Config struct {
 			Labels map[string]string `json:"Labels"`
 		} `json:"Config"`
 		NetworkSettings struct {
-			Networks map[string]struct{} `json:"Networks"`
+			Networks map[string]struct {
+				IPAddress string `json:"IPAddress"`
+			} `json:"Networks"`
 		} `json:"NetworkSettings"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
@@ -109,15 +114,19 @@ func parseInspectOutput(raw []byte) ([]Container, error) {
 	containers := make([]Container, 0, len(payload))
 	for _, item := range payload {
 		networks := make([]string, 0, len(item.NetworkSettings.Networks))
+		networkIPs := make(map[string]string, len(item.NetworkSettings.Networks))
 		for name := range item.NetworkSettings.Networks {
 			networks = append(networks, name)
+			networkIPs[name] = item.NetworkSettings.Networks[name].IPAddress
 		}
 		slices.Sort(networks)
 		containers = append(containers, Container{
-			ID:       item.ID,
-			Name:     strings.TrimPrefix(item.Name, "/"),
-			Labels:   item.Config.Labels,
-			Networks: networks,
+			ID:         item.ID,
+			Name:       strings.TrimPrefix(item.Name, "/"),
+			PID:        item.State.Pid,
+			Labels:     item.Config.Labels,
+			Networks:   networks,
+			NetworkIPs: networkIPs,
 		})
 	}
 	return containers, nil

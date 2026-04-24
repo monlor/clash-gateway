@@ -11,10 +11,16 @@ type NetworkConnector interface {
 	ConnectNetworkBackground(network, containerID string) error
 }
 
+type TrafficRedirector interface {
+	Apply(pid int, gatewayIP string) error
+	ApplyGateway() error
+}
+
 type Manager struct {
 	GatewayName    string
 	ManagedNetwork string
 	Connector      NetworkConnector
+	Redirector     TrafficRedirector
 }
 
 func DetectGatewayNameConflicts(containers []Container) error {
@@ -42,9 +48,31 @@ func (m Manager) SyncOnce(containers []Container) (state.Status, error) {
 		GatewayName:    m.GatewayName,
 		ManagedNetwork: m.ManagedNetwork,
 	}
+	gatewayIP := findGatewayIP(m.GatewayName, m.ManagedNetwork, containers)
+	if m.Redirector != nil && gatewayIP != "" {
+		if err := m.Redirector.ApplyGateway(); err != nil {
+			return state.Status{}, err
+		}
+	}
 	for _, container := range desired.Attach {
 		if m.Connector != nil {
 			if err := m.Connector.ConnectNetworkBackground(m.ManagedNetwork, container.ID); err != nil {
+				return state.Status{}, err
+			}
+		}
+		if m.Redirector != nil && container.PID > 0 && gatewayIP != "" {
+			if err := m.Redirector.Apply(container.PID, gatewayIP); err != nil {
+				return state.Status{}, err
+			}
+		}
+		status.AttachedContainers = append(status.AttachedContainers, container.Name)
+	}
+	for _, container := range desired.Managed {
+		if !hasNetwork(container.Networks, m.ManagedNetwork) {
+			continue
+		}
+		if m.Redirector != nil && container.PID > 0 && gatewayIP != "" {
+			if err := m.Redirector.Apply(container.PID, gatewayIP); err != nil {
 				return state.Status{}, err
 			}
 		}
@@ -56,4 +84,16 @@ func (m Manager) SyncOnce(containers []Container) (state.Status, error) {
 	slices.Sort(status.AttachedContainers)
 	slices.Sort(status.PendingContainers)
 	return status, nil
+}
+
+func findGatewayIP(gatewayName, managedNetwork string, containers []Container) string {
+	for _, container := range containers {
+		if container.Labels[LabelManagedGatewayName] != gatewayName {
+			continue
+		}
+		if ip := container.NetworkIPs[managedNetwork]; ip != "" {
+			return ip
+		}
+	}
+	return ""
 }
