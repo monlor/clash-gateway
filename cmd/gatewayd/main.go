@@ -37,6 +37,25 @@ func main() {
 	defer stop()
 
 	dockerCLI := docker.CLI{}
+	containers, err := dockerCLI.Snapshot(context.Background())
+	if err != nil {
+		log.Fatal(err)
+	}
+	selfIdentifier, err := os.Hostname()
+	if err != nil {
+		log.Fatal(err)
+	}
+	gatewayName, err := docker.FindSelfGatewayName(containers, selfIdentifier)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cfg.SetGatewayName(gatewayName)
+	managedNetworkName, err := docker.FindSelfManagedNetwork(containers, selfIdentifier, gatewayName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	cfg.SetManagedNetworkName(managedNetworkName)
+
 	service := gateway.Service{
 		Config:     cfg,
 		Fetch:      subscription.HTTPFetcher{}.Fetch,

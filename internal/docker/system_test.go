@@ -65,3 +65,79 @@ func TestParseEventLine(t *testing.T) {
 		t.Fatalf("event = %#v, want parsed event", event)
 	}
 }
+
+func TestFindSelfGatewayNameByContainerIDPrefix(t *testing.T) {
+	t.Parallel()
+
+	containers := []Container{
+		{
+			ID: "abc123456789",
+			Labels: map[string]string{
+				LabelManagedGatewayName: "main",
+			},
+		},
+	}
+
+	name, err := FindSelfGatewayName(containers, "abc123456789")
+	if err != nil {
+		t.Fatalf("FindSelfGatewayName returned error: %v", err)
+	}
+	if name != "main" {
+		t.Fatalf("gateway name = %q, want main", name)
+	}
+}
+
+func TestFindSelfGatewayNameRejectsMissingManagedLabel(t *testing.T) {
+	t.Parallel()
+
+	containers := []Container{
+		{ID: "abc123456789", Labels: map[string]string{}},
+	}
+
+	if _, err := FindSelfGatewayName(containers, "abc123456789"); err == nil {
+		t.Fatal("FindSelfGatewayName returned nil error, want label error")
+	}
+}
+
+func TestFindSelfManagedNetworkUsesAttachNetworkLabel(t *testing.T) {
+	t.Parallel()
+
+	containers := []Container{
+		{
+			ID: "abc123456789",
+			Labels: map[string]string{
+				LabelManagedGatewayName: "main",
+				LabelAttachNetworkName:  "custom-net",
+			},
+		},
+	}
+
+	network, err := FindSelfManagedNetwork(containers, "abc123456789", "main")
+	if err != nil {
+		t.Fatalf("FindSelfManagedNetwork returned error: %v", err)
+	}
+	if network != "custom-net" {
+		t.Fatalf("managed network = %q, want custom-net", network)
+	}
+}
+
+func TestFindSelfManagedNetworkFallsBackToDefault(t *testing.T) {
+	t.Parallel()
+
+	containers := []Container{
+		{
+			ID: "abc123456789",
+			Labels: map[string]string{
+				LabelManagedGatewayName: "main",
+			},
+		},
+	}
+
+	network, err := FindSelfManagedNetwork(containers, "abc123456789", "main")
+	if err != nil {
+		t.Fatalf("FindSelfManagedNetwork returned error: %v", err)
+	}
+	if network != "clash-gateway-main" {
+		t.Fatalf("managed network = %q, want clash-gateway-main", network)
+	}
+}

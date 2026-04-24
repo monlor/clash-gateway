@@ -29,7 +29,8 @@ The transparent `TCP + DNS` routing layer is scaffolded as a dedicated `internal
 
 ### Required
 
-- `GATEWAY_NAME`
+- `clash-gateway.name=<name>` label on the gateway container itself
+- `clash-gateway.attach-network=<docker-network>` label on the gateway container when the managed network should not use the default `clash-gateway-<name>`
 - `CONFIG_MODE=subscription|file`
 
 ### Subscription Mode
@@ -52,7 +53,6 @@ The transparent `TCP + DNS` routing layer is scaffolded as a dedicated `internal
 
 ### Docker/Gateway
 
-- `MANAGED_NETWORK_NAME`
 - `AUTO_ATTACH_CONTAINERS=true|false`
 - `DATA_DIR`
 - `LOG_LEVEL`
@@ -83,9 +83,10 @@ docker run -d \
   --restart unless-stopped \
   --privileged \
   --pid host \
+  --label clash-gateway.name=main \
+  --label clash-gateway.attach-network=clash-gateway \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $PWD/data:/data \
-  -e GATEWAY_NAME=main \
   -e CONFIG_MODE=subscription \
   -e SUBSCRIPTION_URL='https://example.com/subscribe' \
   -e EXTERNAL_CONTROLLER_SECRET='change-me' \
@@ -101,10 +102,11 @@ docker run -d \
   --restart unless-stopped \
   --privileged \
   --pid host \
+  --label clash-gateway.name=main \
+  --label clash-gateway.attach-network=clash-gateway \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $PWD/data:/data \
   -v $PWD/mihomo.yaml:/etc/clash-gateway/config.yaml:ro \
-  -e GATEWAY_NAME=main \
   -e CONFIG_MODE=file \
   -e CONFIG_FILE_PATH=/etc/clash-gateway/config.yaml \
   -e EXTERNAL_CONTROLLER_SECRET='change-me' \
@@ -137,9 +139,10 @@ docker run -d \
   --restart unless-stopped \
   --privileged \
   --pid host \
+  --label clash-gateway.name=main \
+  --label clash-gateway.attach-network=clash-gateway \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v $PWD/data:/data \
-  -e GATEWAY_NAME=main \
   -e CONFIG_MODE=subscription \
   -e SUBSCRIPTION_URL='https://example.com/subscribe' \
   -e EXTERNAL_CONTROLLER_SECRET='change-me' \

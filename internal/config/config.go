@@ -40,7 +40,6 @@ type Config struct {
 
 func ParseEnv(getenv func(string) string) (Config, error) {
 	cfg := Config{
-		GatewayName:      strings.TrimSpace(getenv("GATEWAY_NAME")),
 		ConfigMode:       Mode(strings.TrimSpace(getenv("CONFIG_MODE"))),
 		AutoUpdate:       parseBoolDefault(getenv("AUTO_UPDATE"), true),
 		SubscriptionURL:  strings.TrimSpace(getenv("SUBSCRIPTION_URL")),
@@ -71,10 +70,6 @@ func ParseEnv(getenv func(string) string) (Config, error) {
 		return Config{}, fmt.Errorf("UI_PORT: %w", err)
 	}
 
-	cfg.ManagedNetworkName = defaultString(
-		getenv("MANAGED_NETWORK_NAME"),
-		fmt.Sprintf("clash-gateway-%s", cfg.GatewayName),
-	)
 	if cfg.ConfigMode == ModeSubscription && cfg.AutoUpdate && cfg.UpdateInterval == "" && cfg.UpdateCron == "" {
 		cfg.UpdateInterval = "6h"
 	}
@@ -90,9 +85,6 @@ func ParseEnv(getenv func(string) string) (Config, error) {
 }
 
 func (c Config) Validate() error {
-	if c.GatewayName == "" {
-		return errors.New("GATEWAY_NAME is required")
-	}
 	switch c.ConfigMode {
 	case ModeSubscription:
 		if c.SubscriptionURL == "" {
@@ -110,6 +102,24 @@ func (c Config) Validate() error {
 		return errors.New("UPDATE_INTERVAL and UPDATE_CRON are mutually exclusive")
 	}
 	return nil
+}
+
+func (c *Config) SetGatewayName(name string) {
+	c.GatewayName = strings.TrimSpace(name)
+	if c.ManagedNetworkName == "" && c.GatewayName != "" {
+		c.ManagedNetworkName = fmt.Sprintf("clash-gateway-%s", c.GatewayName)
+	}
+}
+
+func (c *Config) SetManagedNetworkName(name string) {
+	name = strings.TrimSpace(name)
+	if name != "" {
+		c.ManagedNetworkName = name
+		return
+	}
+	if c.ManagedNetworkName == "" && c.GatewayName != "" {
+		c.ManagedNetworkName = fmt.Sprintf("clash-gateway-%s", c.GatewayName)
+	}
 }
 
 func defaultString(value, fallback string) string {

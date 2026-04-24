@@ -7,6 +7,7 @@ const (
 	LabelAllowAttach        = "clash-gateway.allow-attach"
 	LabelDisable            = "clash-gateway.disable"
 	LabelManagedGatewayName = "clash-gateway.name"
+	LabelAttachNetworkName  = "clash-gateway.attach-network"
 )
 
 type Target struct {

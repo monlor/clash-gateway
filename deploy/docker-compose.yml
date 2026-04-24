@@ -7,12 +7,14 @@ services:
     privileged: true
     pid: host
     restart: unless-stopped
+    labels:
+      clash-gateway.name: hk
+      clash-gateway.attach-network: clash-gateway-hk
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/hk:/data
       - ./configs/mihomo-hk.yaml:/etc/clash-gateway/mihomo-hk.yaml:ro
     environment:
-      GATEWAY_NAME: hk
       CONFIG_MODE: file
       CONFIG_FILE_PATH: /etc/clash-gateway/mihomo-hk.yaml
       AUTO_UPDATE: "false"
@@ -21,7 +23,6 @@ services:
       EXTERNAL_CONTROLLER_PORT: "9090"
       UI_PORT: "9080"
       EXTERNAL_CONTROLLER_SECRET: hk-secret
-      MANAGED_NETWORK_NAME: clash-gateway-hk
     ports:
       - "7890:7890"
       - "7891:7891"
@@ -36,12 +37,14 @@ services:
     privileged: true
     pid: host
     restart: unless-stopped
+    labels:
+      clash-gateway.name: us
+      clash-gateway.attach-network: clash-gateway-us
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./data/us:/data
       - ./configs/mihomo-us.yaml:/etc/clash-gateway/mihomo-us.yaml:ro
     environment:
-      GATEWAY_NAME: us
       CONFIG_MODE: file
       CONFIG_FILE_PATH: /etc/clash-gateway/mihomo-us.yaml
       AUTO_UPDATE: "false"
@@ -50,7 +53,6 @@ services:
       EXTERNAL_CONTROLLER_PORT: "10090"
       UI_PORT: "10080"
       EXTERNAL_CONTROLLER_SECRET: us-secret
-      MANAGED_NETWORK_NAME: clash-gateway-us
     ports:
       - "8890:8890"
       - "8891:8891"

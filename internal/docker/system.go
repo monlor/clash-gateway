@@ -143,6 +143,54 @@ func parseEventLine(raw []byte) (Event, bool) {
 	return event, true
 }
 
+func FindSelfGatewayName(containers []Container, selfIdentifier string) (string, error) {
+	self, err := findSelfContainer(containers, selfIdentifier)
+	if err != nil {
+		return "", err
+	}
+
+	name := strings.TrimSpace(self.Labels[LabelManagedGatewayName])
+	if name == "" {
+		return "", fmt.Errorf("current container %q is missing label %q", self.Name, LabelManagedGatewayName)
+	}
+	return name, nil
+}
+
+func FindSelfManagedNetwork(containers []Container, selfIdentifier, gatewayName string) (string, error) {
+	self, err := findSelfContainer(containers, selfIdentifier)
+	if err != nil {
+		return "", err
+	}
+
+	name := strings.TrimSpace(self.Labels[LabelAttachNetworkName])
+	if name != "" {
+		return name, nil
+	}
+	return fmt.Sprintf("clash-gateway-%s", strings.TrimSpace(gatewayName)), nil
+}
+
+func findSelfContainer(containers []Container, selfIdentifier string) (*Container, error) {
+	selfIdentifier = strings.TrimSpace(selfIdentifier)
+	if selfIdentifier == "" {
+		return nil, fmt.Errorf("self container identifier is required")
+	}
+
+	var self *Container
+	for i := range containers {
+		container := &containers[i]
+		if container.ID == selfIdentifier || strings.HasPrefix(container.ID, selfIdentifier) || container.Name == selfIdentifier {
+			if self != nil {
+				return nil, fmt.Errorf("multiple containers matched self identifier %q", selfIdentifier)
+			}
+			self = container
+		}
+	}
+	if self == nil {
+		return nil, fmt.Errorf("current container %q not found in docker snapshot", selfIdentifier)
+	}
+	return self, nil
+}
+
 func (c CLI) commandName() string {
 	if c.Command != "" {
 		return c.Command

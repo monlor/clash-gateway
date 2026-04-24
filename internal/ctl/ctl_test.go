@@ -50,7 +50,6 @@ func TestRunValidateConfigReportsSuccess(t *testing.T) {
 		Stderr: &bytes.Buffer{},
 		Getenv: func(key string) string {
 			values := map[string]string{
-				"GATEWAY_NAME":     "hk",
 				"CONFIG_MODE":      "subscription",
 				"SUBSCRIPTION_URL": "https://example.com/sub",
 			}
