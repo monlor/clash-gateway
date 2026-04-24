@@ -1,0 +1,16 @@
+mixed-port: 8890
+socks-port: 8891
+allow-lan: true
+mode: rule
+log-level: info
+external-controller: 0.0.0.0:10090
+secret: us-secret
+proxies:
+  - name: direct
+    type: direct
+proxy-groups:
+  - name: AUTO
+    type: select
+    proxies: [direct]
+rules:
+  - MATCH,AUTO

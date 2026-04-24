@@ -1,0 +1,72 @@
+services:
+  gateway-hk:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: clash-gateway-hk
+    privileged: true
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/hk:/data
+      - ./configs/mihomo-hk.yaml:/etc/clash-gateway/mihomo-hk.yaml:ro
+    environment:
+      GATEWAY_NAME: hk
+      CONFIG_MODE: file
+      CONFIG_FILE_PATH: /etc/clash-gateway/mihomo-hk.yaml
+      AUTO_UPDATE: "false"
+      HTTP_PROXY_PORT: "7890"
+      SOCKS_PROXY_PORT: "7891"
+      EXTERNAL_CONTROLLER_PORT: "9090"
+      UI_PORT: "9080"
+      EXTERNAL_CONTROLLER_SECRET: hk-secret
+      MANAGED_NETWORK_NAME: clash-gateway-hk
+    ports:
+      - "7890:7890"
+      - "7891:7891"
+      - "9090:9090"
+      - "9080:9080"
+
+  gateway-us:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: clash-gateway-us
+    privileged: true
+    pid: host
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/us:/data
+      - ./configs/mihomo-us.yaml:/etc/clash-gateway/mihomo-us.yaml:ro
+    environment:
+      GATEWAY_NAME: us
+      CONFIG_MODE: file
+      CONFIG_FILE_PATH: /etc/clash-gateway/mihomo-us.yaml
+      AUTO_UPDATE: "false"
+      HTTP_PROXY_PORT: "8890"
+      SOCKS_PROXY_PORT: "8891"
+      EXTERNAL_CONTROLLER_PORT: "10090"
+      UI_PORT: "10080"
+      EXTERNAL_CONTROLLER_SECRET: us-secret
+      MANAGED_NETWORK_NAME: clash-gateway-us
+    ports:
+      - "8890:8890"
+      - "8891:8891"
+      - "10090:10090"
+      - "10080:10080"
+
+  app-a:
+    image: alpine:3.22
+    command: ["sh", "-c", "sleep infinity"]
+    labels:
+      clash-gateway.gateway: hk
+      clash-gateway.allow-attach: "true"
+
+  app-b:
+    image: alpine:3.22
+    command: ["sh", "-c", "sleep infinity"]
+    labels:
+      clash-gateway.gateway: us
+      clash-gateway.allow-attach: "true"
