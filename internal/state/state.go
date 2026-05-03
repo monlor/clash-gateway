@@ -19,28 +19,35 @@ type SubscriptionStatus struct {
 	LastError     string    `json:"last_error,omitempty"`
 }
 
+type RejectedContainer struct {
+	Name   string `json:"name"`
+	Reason string `json:"reason"`
+}
+
 type Status struct {
-	GatewayName        string             `json:"gateway_name"`
-	ConfigMode         string             `json:"config_mode"`
-	ManagedNetwork     string             `json:"managed_network"`
-	Subscription       SubscriptionStatus `json:"subscription"`
-	AttachedContainers []string           `json:"attached_containers"`
-	PendingContainers  []string           `json:"pending_containers"`
-	Ports              Ports              `json:"-"`
+	GatewayName        string              `json:"gateway_name"`
+	ConfigMode         string              `json:"config_mode"`
+	ManagedNetwork     string              `json:"managed_network"`
+	Subscription       SubscriptionStatus  `json:"subscription"`
+	AttachedContainers []string            `json:"attached_containers"`
+	PendingContainers  []string            `json:"pending_containers"`
+	RejectedContainers []RejectedContainer `json:"rejected_containers"`
+	Ports              Ports               `json:"-"`
 }
 
 func (s Status) MarshalJSON() ([]byte, error) {
 	type payload struct {
-		GatewayName        string             `json:"gateway_name"`
-		ConfigMode         string             `json:"config_mode"`
-		ManagedNetwork     string             `json:"managed_network"`
-		Subscription       SubscriptionStatus `json:"subscription"`
-		AttachedContainers []string           `json:"attached_containers"`
-		PendingContainers  []string           `json:"pending_containers"`
-		HTTPProxyPort      int                `json:"http_proxy_port"`
-		SOCKSProxyPort     int                `json:"socks_proxy_port"`
-		ControllerPort     int                `json:"external_controller_port"`
-		UIPort             int                `json:"ui_port"`
+		GatewayName        string              `json:"gateway_name"`
+		ConfigMode         string              `json:"config_mode"`
+		ManagedNetwork     string              `json:"managed_network"`
+		Subscription       SubscriptionStatus  `json:"subscription"`
+		AttachedContainers []string            `json:"attached_containers"`
+		PendingContainers  []string            `json:"pending_containers"`
+		RejectedContainers []RejectedContainer `json:"rejected_containers"`
+		HTTPProxyPort      int                 `json:"http_proxy_port"`
+		SOCKSProxyPort     int                 `json:"socks_proxy_port"`
+		ControllerPort     int                 `json:"external_controller_port"`
+		UIPort             int                 `json:"ui_port"`
 	}
 	return json.Marshal(payload{
 		GatewayName:        s.GatewayName,
@@ -49,6 +56,7 @@ func (s Status) MarshalJSON() ([]byte, error) {
 		Subscription:       s.Subscription,
 		AttachedContainers: s.AttachedContainers,
 		PendingContainers:  s.PendingContainers,
+		RejectedContainers: s.RejectedContainers,
 		HTTPProxyPort:      s.Ports.HTTPProxy,
 		SOCKSProxyPort:     s.Ports.SOCKSProxy,
 		ControllerPort:     s.Ports.ExternalController,
@@ -58,16 +66,17 @@ func (s Status) MarshalJSON() ([]byte, error) {
 
 func (s *Status) UnmarshalJSON(raw []byte) error {
 	type payload struct {
-		GatewayName        string             `json:"gateway_name"`
-		ConfigMode         string             `json:"config_mode"`
-		ManagedNetwork     string             `json:"managed_network"`
-		Subscription       SubscriptionStatus `json:"subscription"`
-		AttachedContainers []string           `json:"attached_containers"`
-		PendingContainers  []string           `json:"pending_containers"`
-		HTTPProxyPort      int                `json:"http_proxy_port"`
-		SOCKSProxyPort     int                `json:"socks_proxy_port"`
-		ControllerPort     int                `json:"external_controller_port"`
-		UIPort             int                `json:"ui_port"`
+		GatewayName        string              `json:"gateway_name"`
+		ConfigMode         string              `json:"config_mode"`
+		ManagedNetwork     string              `json:"managed_network"`
+		Subscription       SubscriptionStatus  `json:"subscription"`
+		AttachedContainers []string            `json:"attached_containers"`
+		PendingContainers  []string            `json:"pending_containers"`
+		RejectedContainers []RejectedContainer `json:"rejected_containers"`
+		HTTPProxyPort      int                 `json:"http_proxy_port"`
+		SOCKSProxyPort     int                 `json:"socks_proxy_port"`
+		ControllerPort     int                 `json:"external_controller_port"`
+		UIPort             int                 `json:"ui_port"`
 	}
 
 	var decoded payload
@@ -80,6 +89,7 @@ func (s *Status) UnmarshalJSON(raw []byte) error {
 	s.Subscription = decoded.Subscription
 	s.AttachedContainers = decoded.AttachedContainers
 	s.PendingContainers = decoded.PendingContainers
+	s.RejectedContainers = decoded.RejectedContainers
 	s.Ports = Ports{
 		HTTPProxy:          decoded.HTTPProxyPort,
 		SOCKSProxy:         decoded.SOCKSProxyPort,

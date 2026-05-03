@@ -169,3 +169,59 @@ func TestSyncOnceAttachesThenRedirectsContainer(t *testing.T) {
 		t.Fatalf("redirector.calls = %#v, want one redirect for app-a", redirector.calls)
 	}
 }
+
+func TestSyncOnceRejectsHostNetworkContainerWithoutAttachOrRedirect(t *testing.T) {
+	t.Parallel()
+
+	connector := &fakeConnector{}
+	redirector := &fakeRedirector{}
+	manager := docker.Manager{
+		GatewayName:    "hk",
+		ManagedNetwork: "clash-gateway-hk",
+		Connector:      connector,
+		Redirector:     redirector,
+	}
+
+	status, err := manager.SyncOnce([]docker.Container{
+		{
+			Name: "gateway-hk",
+			Labels: map[string]string{
+				docker.LabelManagedGatewayName: "hk",
+			},
+			Networks:   []string{"clash-gateway-hk"},
+			NetworkIPs: map[string]string{"clash-gateway-hk": "172.20.0.2"},
+		},
+		{
+			ID:          "a1",
+			Name:        "app-host",
+			PID:         1001,
+			NetworkMode: "host",
+			Labels: map[string]string{
+				docker.LabelGateway:     "hk",
+				docker.LabelAllowAttach: "true",
+			},
+			Networks: []string{"host"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("SyncOnce returned error: %v", err)
+	}
+	if len(connector.calls) != 0 {
+		t.Fatalf("connector.calls = %#v, want no host-network attach", connector.calls)
+	}
+	if len(redirector.calls) != 0 {
+		t.Fatalf("redirector.calls = %#v, want no host-network redirect", redirector.calls)
+	}
+	if len(status.AttachedContainers) != 0 {
+		t.Fatalf("AttachedContainers = %#v, want none", status.AttachedContainers)
+	}
+	if len(status.RejectedContainers) != 1 {
+		t.Fatalf("RejectedContainers = %#v, want one rejected container", status.RejectedContainers)
+	}
+	if status.RejectedContainers[0].Name != "app-host" {
+		t.Fatalf("RejectedContainers[0].Name = %q, want app-host", status.RejectedContainers[0].Name)
+	}
+	if status.RejectedContainers[0].Reason == "" {
+		t.Fatal("RejectedContainers[0].Reason is empty, want host-network reason")
+	}
+}

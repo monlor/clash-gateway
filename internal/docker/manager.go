@@ -81,8 +81,23 @@ func (m Manager) SyncOnce(containers []Container) (state.Status, error) {
 	for _, container := range desired.Pending {
 		status.PendingContainers = append(status.PendingContainers, container.Name)
 	}
+	for _, rejected := range desired.Rejected {
+		status.RejectedContainers = append(status.RejectedContainers, state.RejectedContainer{
+			Name:   rejected.Container.Name,
+			Reason: rejected.Reason,
+		})
+	}
 	slices.Sort(status.AttachedContainers)
 	slices.Sort(status.PendingContainers)
+	slices.SortFunc(status.RejectedContainers, func(a, b state.RejectedContainer) int {
+		if a.Name < b.Name {
+			return -1
+		}
+		if a.Name > b.Name {
+			return 1
+		}
+		return 0
+	})
 	return status, nil
 }
 

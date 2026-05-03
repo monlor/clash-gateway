@@ -13,6 +13,7 @@
   - `clash-gateway.gateway=<name>`
   - `clash-gateway.allow-attach=true`
   - `clash-gateway.disable=true`
+- Refuses app containers that use Docker `network_mode: host`; routing them would mutate the host network namespace
 
 ## Current Shape
 
@@ -128,6 +129,7 @@ After the container starts:
 - Other containers join this gateway with:
   - `clash-gateway.gateway=main`
   - `clash-gateway.allow-attach=true`
+- Do not put host-network app containers behind `clash-gateway`; they are reported under `rejected_containers` in status instead of being attached or redirected.
 
 ### Optional: expose host-side HTTP/SOCKS proxy ports
 

@@ -81,3 +81,37 @@ func TestBuildDesiredStateSeparatesAttachedAndPending(t *testing.T) {
 		t.Fatalf("Managed = %#v, want 2 hk containers", desired.Managed)
 	}
 }
+
+func TestBuildDesiredStateRejectsHostNetworkTargets(t *testing.T) {
+	t.Parallel()
+
+	containers := []docker.Container{
+		{
+			ID:          "a1",
+			Name:        "app-host",
+			NetworkMode: "host",
+			Labels: map[string]string{
+				"clash-gateway.gateway":      "hk",
+				"clash-gateway.allow-attach": "true",
+			},
+			Networks: []string{"host"},
+		},
+	}
+
+	desired := docker.BuildDesiredState("hk", "clash-gateway-hk", containers)
+	if len(desired.Attach) != 0 {
+		t.Fatalf("Attach = %#v, want no host-network attach", desired.Attach)
+	}
+	if len(desired.Managed) != 0 {
+		t.Fatalf("Managed = %#v, want host-network target excluded from managed", desired.Managed)
+	}
+	if len(desired.Rejected) != 1 {
+		t.Fatalf("Rejected = %#v, want one rejected container", desired.Rejected)
+	}
+	if desired.Rejected[0].Container.Name != "app-host" {
+		t.Fatalf("Rejected[0].Container.Name = %q, want app-host", desired.Rejected[0].Container.Name)
+	}
+	if desired.Rejected[0].Reason == "" {
+		t.Fatal("Rejected[0].Reason is empty, want host-network reason")
+	}
+}

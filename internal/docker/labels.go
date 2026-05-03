@@ -17,19 +17,28 @@ type Target struct {
 }
 
 type Container struct {
-	ID         string
-	Name       string
-	PID        int
-	Labels     map[string]string
-	Networks   []string
-	NetworkIPs map[string]string
+	ID          string
+	Name        string
+	PID         int
+	Labels      map[string]string
+	Networks    []string
+	NetworkIPs  map[string]string
+	NetworkMode string
+}
+
+type RejectedContainer struct {
+	Container Container
+	Reason    string
 }
 
 type DesiredState struct {
-	Managed []Container
-	Attach  []Container
-	Pending []Container
+	Managed  []Container
+	Attach   []Container
+	Pending  []Container
+	Rejected []RejectedContainer
 }
+
+const HostNetworkRejectReason = "host network containers cannot be routed through clash-gateway"
 
 func ParseTarget(labels map[string]string) (Target, bool) {
 	gatewayName := strings.TrimSpace(labels[LabelGateway])
@@ -50,6 +59,13 @@ func BuildDesiredState(gatewayName, managedNetwork string, containers []Containe
 		if !ok || target.Disabled || target.GatewayName != gatewayName {
 			continue
 		}
+		if isHostNetworkMode(container.NetworkMode) {
+			desired.Rejected = append(desired.Rejected, RejectedContainer{
+				Container: container,
+				Reason:    HostNetworkRejectReason,
+			})
+			continue
+		}
 
 		desired.Managed = append(desired.Managed, container)
 		if hasNetwork(container.Networks, managedNetwork) {
@@ -62,6 +78,10 @@ func BuildDesiredState(gatewayName, managedNetwork string, containers []Containe
 		desired.Pending = append(desired.Pending, container)
 	}
 	return desired
+}
+
+func isHostNetworkMode(mode string) bool {
+	return strings.EqualFold(strings.TrimSpace(mode), "host")
 }
 
 func hasNetwork(networks []string, target string) bool {

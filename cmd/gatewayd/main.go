@@ -72,12 +72,13 @@ func main() {
 			snapshots := make([]gateway.ContainerSnapshot, 0, len(containers))
 			for _, container := range containers {
 				snapshots = append(snapshots, gateway.ContainerSnapshot{
-					ID:         container.ID,
-					Name:       container.Name,
-					PID:        container.PID,
-					Labels:     container.Labels,
-					Networks:   container.Networks,
-					NetworkIPs: container.NetworkIPs,
+					ID:          container.ID,
+					Name:        container.Name,
+					PID:         container.PID,
+					Labels:      container.Labels,
+					Networks:    container.Networks,
+					NetworkIPs:  container.NetworkIPs,
+					NetworkMode: container.NetworkMode,
 				})
 			}
 			return snapshots

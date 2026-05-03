@@ -102,6 +102,9 @@ func parseInspectOutput(raw []byte) ([]Container, error) {
 		Config struct {
 			Labels map[string]string `json:"Labels"`
 		} `json:"Config"`
+		HostConfig struct {
+			NetworkMode string `json:"NetworkMode"`
+		} `json:"HostConfig"`
 		NetworkSettings struct {
 			Networks map[string]struct {
 				IPAddress string `json:"IPAddress"`
@@ -122,12 +125,13 @@ func parseInspectOutput(raw []byte) ([]Container, error) {
 		}
 		slices.Sort(networks)
 		containers = append(containers, Container{
-			ID:         item.ID,
-			Name:       strings.TrimPrefix(item.Name, "/"),
-			PID:        item.State.Pid,
-			Labels:     item.Config.Labels,
-			Networks:   networks,
-			NetworkIPs: networkIPs,
+			ID:          item.ID,
+			Name:        strings.TrimPrefix(item.Name, "/"),
+			PID:         item.State.Pid,
+			Labels:      item.Config.Labels,
+			Networks:    networks,
+			NetworkIPs:  networkIPs,
+			NetworkMode: item.HostConfig.NetworkMode,
 		})
 	}
 	return containers, nil

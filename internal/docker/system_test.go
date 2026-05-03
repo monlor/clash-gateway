@@ -20,6 +20,9 @@ func TestParseInspectOutput(t *testing.T) {
 	        "clash-gateway.allow-attach": "true"
 	      }
 	    },
+	    "HostConfig": {
+	      "NetworkMode": "host"
+	    },
 	    "NetworkSettings": {
 	      "Networks": {
 	        "bridge": {
@@ -51,6 +54,9 @@ func TestParseInspectOutput(t *testing.T) {
 	}
 	if containers[0].NetworkIPs["clash-gateway-hk"] != "172.20.0.10" {
 		t.Fatalf("NetworkIPs = %#v, want managed IP", containers[0].NetworkIPs)
+	}
+	if containers[0].NetworkMode != "host" {
+		t.Fatalf("NetworkMode = %q, want host", containers[0].NetworkMode)
 	}
 }
 

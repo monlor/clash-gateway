@@ -11,12 +11,13 @@ import (
 )
 
 type ContainerSnapshot struct {
-	ID         string
-	Name       string
-	PID        int
-	Labels     map[string]string
-	Networks   []string
-	NetworkIPs map[string]string
+	ID          string
+	Name        string
+	PID         int
+	Labels      map[string]string
+	Networks    []string
+	NetworkIPs  map[string]string
+	NetworkMode string
 }
 
 type Result struct {
@@ -74,12 +75,13 @@ func (s Service) syncState() (state.Status, error) {
 	if s.Containers != nil {
 		for _, container := range s.Containers() {
 			containers = append(containers, docker.Container{
-				ID:         container.ID,
-				Name:       container.Name,
-				PID:        container.PID,
-				Labels:     container.Labels,
-				Networks:   container.Networks,
-				NetworkIPs: container.NetworkIPs,
+				ID:          container.ID,
+				Name:        container.Name,
+				PID:         container.PID,
+				Labels:      container.Labels,
+				Networks:    container.Networks,
+				NetworkIPs:  container.NetworkIPs,
+				NetworkMode: container.NetworkMode,
 			})
 		}
 	}

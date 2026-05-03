@@ -27,6 +27,9 @@ func TestStatusJSONShape(t *testing.T) {
 		},
 		AttachedContainers: []string{"app-a"},
 		PendingContainers:  []string{"app-b"},
+		RejectedContainers: []state.RejectedContainer{
+			{Name: "app-host", Reason: "host network containers cannot be routed through clash-gateway"},
+		},
 	}
 
 	raw, err := json.Marshal(status)
@@ -46,6 +49,7 @@ func TestStatusJSONShape(t *testing.T) {
 		"subscription",
 		"attached_containers",
 		"pending_containers",
+		"rejected_containers",
 		"http_proxy_port",
 		"socks_proxy_port",
 		"external_controller_port",
@@ -54,6 +58,38 @@ func TestStatusJSONShape(t *testing.T) {
 		if _, ok := decoded[field]; !ok {
 			t.Fatalf("decoded JSON missing field %q", field)
 		}
+	}
+}
+
+func TestLoadRestoresRejectedContainers(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := root + "/status.json"
+	status := state.Status{
+		GatewayName:    "hk",
+		ConfigMode:     "subscription",
+		ManagedNetwork: "clash-gateway-hk",
+		RejectedContainers: []state.RejectedContainer{
+			{Name: "app-host", Reason: "host network containers cannot be routed through clash-gateway"},
+		},
+	}
+	if err := state.Save(path, status); err != nil {
+		t.Fatalf("Save returned error: %v", err)
+	}
+
+	loaded, err := state.Load(path)
+	if err != nil {
+		t.Fatalf("Load returned error: %v", err)
+	}
+	if len(loaded.RejectedContainers) != 1 {
+		t.Fatalf("RejectedContainers = %#v, want one rejected container", loaded.RejectedContainers)
+	}
+	if loaded.RejectedContainers[0].Name != "app-host" {
+		t.Fatalf("RejectedContainers[0].Name = %q, want app-host", loaded.RejectedContainers[0].Name)
+	}
+	if loaded.RejectedContainers[0].Reason == "" {
+		t.Fatal("RejectedContainers[0].Reason is empty, want preserved reason")
 	}
 }
 
